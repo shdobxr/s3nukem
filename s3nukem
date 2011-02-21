@@ -4,11 +4,12 @@
 #
 # original by: Stephen Eley (sfeley@gmail.com)
 # improved by: Robert LaThanh
+# improved again by: Ben Hathaway
 #
-# A script to delete Amazon S3 buckets with many objects (millions) quickly by
+# A script to delete Amazon S3 buckets (or folders within buckets) with many objects (millions) quickly by
 # using multiple threads to retrieve and delete the individual objects.
 #
-# http://github.com/lathanh/s3nuke
+# https://github.com/hathaway/s3nukem
 #
 # Licensed under the Apache License v2.0 (http://apache.org/licenses)
 
@@ -27,6 +28,7 @@ access_key = nil
 secret_key = nil
 thread_count = 10
 max_queue = 10 * 1000
+path = ''
 STDOUT.sync = true
 
 buckets = []
@@ -45,6 +47,12 @@ begin
           '--secret SECRET',
           String,
           'Amazon Secret Key (required)') {|key| secret_key = key}
+  opts.on('-p',
+		'--path PATH',
+        String,
+        'Path of folder to delete (defaults to deleting entire bucket)') do |val|
+			path = val
+		end
   opts.on('-t',
           '--threads COUNT',
           Integer,
@@ -90,7 +98,7 @@ rescue RightAws::AwsError => e
 end
 
 buckets.each do |bucket|
-  puts "DELETING: #{bucket}"
+  puts "DELETING: #{bucket} with #{access_key} and #{secret_key} in the path #{path}"
 
   # Thread management
   threads = []
@@ -112,7 +120,7 @@ buckets.each do |bucket|
         sleep 1
       end
 
-      keys = s3.list_bucket(bucket, :marker => prefix)
+      keys = s3.list_bucket(bucket, :marker => prefix, :prefix => path)
       prefix = keys.last[:key] unless keys.empty?
       keys.each do |key|
         queue.enq(key[:key])
@@ -151,6 +159,10 @@ buckets.each do |bucket|
   end
 
   # Clean up any stragglers and kill the bucket
-  puts "Bucket #{bucket} deleted!" if mains3.force_delete_bucket(bucket)
+  if path == ''
+  	puts "Bucket #{bucket} deleted!" if mains3.force_delete_bucket(bucket)
+  else
+	puts "Path #{path} in bucket #{bucket} deleted!"
+  end
   puts
 end
