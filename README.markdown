@@ -65,4 +65,4 @@ Original script by [Steve Eley](http://extraneous.org/).
 
 Improvements by [Robert LaThanh](http://robertlathanh.com/2010/07/s3nukem-delete-large-amazon-s3-buckets/).
 
-Additional improvements by [Ben Hathaway](http://hathology.com).
+Additional improvements by [Ben Hathaway](http://hathology.com/2011/02/how-to-delete-large-amounts-of-files-from-amazon-s3-buckets-or-folders/).
