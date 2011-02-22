@@ -139,9 +139,11 @@ buckets.each do |bucket|
       begin
         key = queue.deq
         unless key == :END_OF_BUCKET
+		  
           s3.delete(bucket, key)
           mutex_total.synchronize {total_deleted += 1}
           if (rand(1000) == 1)
+			puts "Deleting #{key}"
             elapsed = Time.now - start_time
             puts "#{elapsed}: Deleted #{total_deleted} out of #{total_listed}"
           end
