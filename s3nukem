@@ -5,6 +5,7 @@
 # original by: Stephen Eley (sfeley@gmail.com)
 # improved by: Robert LaThanh
 # improved again by: Ben Hathaway
+# improved again by: Alon Rohter
 #
 # A script to delete Amazon S3 buckets (or folders within buckets) with many objects (millions) quickly by
 # using multiple threads to retrieve and delete the individual objects.
@@ -20,8 +21,7 @@ require 'thread'
 begin
   require 'right_aws'
 rescue LoadError
-  puts "Missing the RightAWS gem! Try: sudo gem install right_aws"
-  puts "or for Ruby 1.9: sudo gem install dmarkow-right_aws --source http://gems.github.com"
+  puts "Missing the RightAWS gem! Try: sudo gem install right_aws --no-rdoc --no-ri"
 end
 
 access_key = nil
@@ -29,6 +29,7 @@ secret_key = nil
 thread_count = 10
 max_queue = 10 * 1000
 path = ''
+host = 's3.amazonaws.com'
 STDOUT.sync = true
 
 buckets = []
@@ -48,11 +49,13 @@ begin
           String,
           'Amazon Secret Key (required)') {|key| secret_key = key}
   opts.on('-p',
-		'--path PATH',
-        String,
-        'Path of folder to delete (defaults to deleting entire bucket)') do |val|
-			path = val
-		end
+		      '--path PATH',
+          String,
+          'Path of folder to delete (defaults to deleting entire bucket)') {|p| path = p}
+  opts.on('-h',
+        	'--host HOST',
+          String,
+          'S3 region server host (defaults to us-standard: s3.amazonaws.com)') {|h| host = h}
   opts.on('-t',
           '--threads COUNT',
           Integer,
@@ -88,7 +91,7 @@ end
 # Make a connection for bucket deletion
 log = Logger.new(STDOUT)
 log.level = Logger::ERROR
-mains3 = RightAws::S3Interface.new(access_key, secret_key, :multi_thread => true, :port => 80, :protocol => 'http', :logger => log)
+mains3 = RightAws::S3Interface.new(access_key, secret_key, :multi_thread => true, :port => 80, :protocol => 'http', :logger => log, :server => host)
 begin
   mains3.list_all_my_buckets  # Confirm credentials
 rescue RightAws::AwsError => e
@@ -98,7 +101,7 @@ rescue RightAws::AwsError => e
 end
 
 buckets.each do |bucket|
-  puts "DELETING: #{bucket} with #{access_key} and #{secret_key} in the path #{path}"
+  puts "DELETING: #{host}: #{bucket} with #{access_key} and #{secret_key} in the path #{path}"
 
   # Thread management
   threads = []
@@ -113,7 +116,7 @@ buckets.each do |bucket|
   threads << Thread.new do
     Thread.current[:number] = "CATALOG"
     puts "Starting catalog thread..."
-    s3 = RightAws::S3Interface.new(access_key, secret_key, :multi_thread => true, :port => 80, :protocol => 'http', :logger => log)
+    s3 = RightAws::S3Interface.new(access_key, secret_key, :multi_thread => true, :port => 80, :protocol => 'http', :logger => log, :server => host)
     prefix = ''
     begin
       while queue.length > max_queue
@@ -135,7 +138,7 @@ buckets.each do |bucket|
     threads << Thread.new(count) do |number|
       Thread.current[:number] = number
       puts "Starting deletion thread #{number}..."
-      s3 = RightAws::S3Interface.new(access_key, secret_key, :multi_thread => true, :port => 80, :protocol => 'http', :logger => log)
+      s3 = RightAws::S3Interface.new(access_key, secret_key, :multi_thread => true, :port => 80, :protocol => 'http', :logger => log, :server => host)
       begin
         key = queue.deq
         unless key == :END_OF_BUCKET
@@ -143,7 +146,7 @@ buckets.each do |bucket|
           s3.delete(bucket, key)
           mutex_total.synchronize {total_deleted += 1}
           if (rand(1000) == 1)
-			puts "Deleting #{key}"
+			      puts "Deleting #{key}"
             elapsed = Time.now - start_time
             puts "#{elapsed}: Deleted #{total_deleted} out of #{total_listed}"
           end
@@ -164,7 +167,7 @@ buckets.each do |bucket|
   if path == ''
   	puts "Bucket #{bucket} deleted!" if mains3.force_delete_bucket(bucket)
   else
-	puts "Path #{path} in bucket #{bucket} deleted!"
+	  puts "Path #{path} in bucket #{bucket} deleted!"
   end
   puts
 end
