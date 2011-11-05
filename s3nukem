@@ -27,7 +27,7 @@ end
 access_key = nil
 secret_key = nil
 thread_count = 10
-max_queue = 10 * 1000
+max_queue = 10 * 2000
 path = ''
 host = 's3.amazonaws.com'
 STDOUT.sync = true
@@ -61,7 +61,7 @@ begin
           Integer,
           "Number of simultaneous threads (default #{thread_count})") do |val|
             thread_count = val
-            max_queue = val * 1000
+            max_queue = val * 2000
           end
   opts.on('-h', '--help', 'Show this message') do
     puts opts
@@ -123,7 +123,7 @@ buckets.each do |bucket|
         sleep 1
       end
 
-      keys = s3.list_bucket(bucket, :marker => prefix, :prefix => path)
+      keys = s3.list_bucket(bucket, {'marker' => prefix, 'prefix' => path} )
       prefix = keys.last[:key] unless keys.empty?
       keys.each do |key|
         queue.enq(key[:key])
