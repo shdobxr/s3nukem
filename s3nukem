@@ -52,7 +52,7 @@ begin
 		      '--path PATH',
           String,
           'Path of folder to delete (defaults to deleting entire bucket)') {|p| path = p}
-  opts.on('-h',
+  opts.on('-r',
         	'--host HOST',
           String,
           'S3 region server host (defaults to us-standard: s3.amazonaws.com)') {|h| host = h}
